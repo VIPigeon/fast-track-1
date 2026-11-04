@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 
 const getRandomColor = () => {
@@ -10,25 +10,16 @@ const getRandomColor = () => {
   return color;
 };
 
-const createInitialBoxes = (count = 6) => {
-  return Array.from({ length: count }, (_, index) => ({
-    id: `box-${index}-${Date.now()}`,
-    x: Math.floor(Math.random() * 250) + 20,
-    y: Math.floor(Math.random() * 250) + 20,
-    width: Math.floor(Math.random() * 60) + 100,
-    height: Math.floor(Math.random() * 40) + 80,
-    color: getRandomColor(),
-    title: `Блок #${index + 1}`
-  }));
-};
-
 export default function App() {
-  const [boxes, setBoxes] = useState(createInitialBoxes(6));
+  const [boxes, setBoxes] = useState([]);
   const [activeBoxId, setActiveBoxId] = useState(null);
 
   const containerRef = useRef(null);
   const boxElementsRef = useRef({});
   
+  // Хранилище загруженных из API игр, чтобы при добавлении блока брать их оттуда
+  const dealsPoolRef = useRef([]);
+
   const dragInfo = useRef({
     id: null,
     startX: 0,
@@ -41,6 +32,50 @@ export default function App() {
     height: 0,
   });
 
+  // Загружаем игры с CheapShark API при монтировании
+  useEffect(() => {
+    fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=20')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          dealsPoolRef.current = data;
+
+          // Создаем первые 6 блоков на основе полученных данных
+          const initialBoxes = data.slice(0, 6).map((deal, index) => {
+            const w = Math.floor(Math.random() * 60) + 140;
+            const h = Math.floor(Math.random() * 40) + 90;
+            return {
+              id: `box-${index}-${Date.now()}`,
+              x: Math.floor(Math.random() * 300) + 20,
+              y: Math.floor(Math.random() * 300) + 20,
+              width: w,
+              height: h,
+              color: getRandomColor(),
+              title: deal.title,
+              link: `https://www.cheapshark.com/redirect?dealID=${deal.dealID}`,
+            };
+          });
+          setBoxes(initialBoxes);
+        }
+      })
+      .catch((err) => {
+        console.error('Ошибка загрузки CheapShark API:', err);
+        // Запасной вариант, если API недоступно
+        setBoxes([
+          {
+            id: 'fallback-1',
+            x: 50,
+            y: 50,
+            width: 150,
+            height: 100,
+            color: '#4f46e5',
+            title: 'CheapShark API Error / Fallback Game',
+            link: 'https://www.cheapshark.com/',
+          },
+        ]);
+      });
+  }, []);
+
   const handlePointerMove = useCallback((e) => {
     const { id, startX, startY, initialX, initialY, width, height } = dragInfo.current;
     if (!id) return;
@@ -49,14 +84,12 @@ export default function App() {
     if (!container) return;
     const rect = container.getBoundingClientRect();
 
-    // Смещение курсора от точки нажатия
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
 
     let newX = initialX + dx;
     let newY = initialY + dy;
 
-    // Ограничение границами контейнера
     const maxX = rect.width - width;
     const maxY = rect.height - height;
     newX = Math.max(0, Math.min(newX, maxX));
@@ -65,7 +98,6 @@ export default function App() {
     dragInfo.current.currentX = newX;
     dragInfo.current.currentY = newY;
 
-    // Двигаем через transform с небольшим увеличением при захвате
     const el = boxElementsRef.current[id];
     if (el) {
       el.style.transform = `translate(${newX}px, ${newY}px) scale(1.03)`;
@@ -76,14 +108,11 @@ export default function App() {
     const { id, currentX, currentY } = dragInfo.current;
     if (!id) return;
 
-    // Возвращаем масштаб к 1 и фиксируем финальные координаты в трансформе ДО обновления стейта,
-    // чтобы не было никаких визуальных прыжков.
     const el = boxElementsRef.current[id];
     if (el) {
       el.style.transform = `translate(${currentX}px, ${currentY}px)`;
     }
 
-    // Сохраняем новые координаты в React-состояние
     setBoxes((prevBoxes) =>
       prevBoxes.map((b) => (b.id === id ? { ...b, x: currentX, y: currentY } : b))
     );
@@ -104,7 +133,6 @@ export default function App() {
 
     setActiveBoxId(box.id);
     
-    // Перемещаем блок в конец массива, чтобы он отрисовывался поверх остальных
     setBoxes((prevBoxes) => {
       const filtered = prevBoxes.filter((b) => b.id !== box.id);
       return [...filtered, box];
@@ -131,8 +159,14 @@ export default function App() {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
-    const w = Math.floor(Math.random() * 60) + 100;
-    const h = Math.floor(Math.random() * 40) + 80;
+    const w = Math.floor(Math.random() * 60) + 140;
+    const h = Math.floor(Math.random() * 40) + 90;
+
+    // Берем случайную игру из загруженного пула или дефолтную
+    const pool = dealsPoolRef.current;
+    const randomDeal = pool.length > 0 
+      ? pool[Math.floor(Math.random() * pool.length)] 
+      : { title: 'Случайная игра', dealID: '' };
 
     const newBox = {
       id: `box-${Date.now()}`,
@@ -141,7 +175,10 @@ export default function App() {
       width: w,
       height: h,
       color: getRandomColor(),
-      title: `Блок #${boxes.length + 1}`
+      title: randomDeal.title,
+      link: randomDeal.dealID 
+        ? `https://www.cheapshark.com/redirect?dealID=${randomDeal.dealID}` 
+        : 'https://www.cheapshark.com/',
     };
 
     setBoxes((prev) => [...prev, newBox]);
@@ -150,9 +187,9 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1 className="title">Drag & Drop Прямоугольники</h1>
+        <h1 className="title">Игры с CheapShark & Drag & Drop</h1>
         <button onClick={addBox} className="button">
-          + Добавить прямоугольник
+          + Добавить игру
         </button>
       </header>
 
@@ -177,7 +214,16 @@ export default function App() {
                 transform: `translate(${box.x}px, ${box.y}px)`,
               }}
             >
-              <span>{box.title}</span>
+              <a
+                href={box.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="game-link"
+                onPointerDown={(e) => e.stopPropagation()} // Блокируем перетаскивание при клике на текст ссылки
+                onClick={(e) => e.stopPropagation()}        // Блокируем клик, чтобы открывалась вкладка
+              >
+                {box.title}
+              </a>
             </div>
           );
         })}
