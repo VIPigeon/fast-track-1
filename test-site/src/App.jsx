@@ -1,13 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
 
+const COLOR_PALETTE = [
+  '#4f46e5',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+];
+
 const getRandomColor = () => {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
+  const randomIndex = Math.floor(Math.random() * COLOR_PALETTE.length);
+  return COLOR_PALETTE[randomIndex];
 };
 
 export default function App() {
@@ -15,9 +21,8 @@ export default function App() {
   const [activeBoxId, setActiveBoxId] = useState(null);
 
   const containerRef = useRef(null);
+  const trashRef = useRef(null);
   const boxElementsRef = useRef({});
-  
-  // Хранилище загруженных из API игр, чтобы при добавлении блока брать их оттуда
   const dealsPoolRef = useRef([]);
 
   const dragInfo = useRef({
@@ -30,9 +35,9 @@ export default function App() {
     currentY: 0,
     width: 0,
     height: 0,
+    isOverTrash: false,
   });
 
-  // Загружаем игры с CheapShark API при монтировании
   useEffect(() => {
     fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=20')
       .then((res) => res.json())
@@ -40,7 +45,6 @@ export default function App() {
         if (Array.isArray(data) && data.length > 0) {
           dealsPoolRef.current = data;
 
-          // Создаем первые 6 блоков на основе полученных данных
           const initialBoxes = data.slice(0, 6).map((deal, index) => {
             const w = Math.floor(Math.random() * 60) + 140;
             const h = Math.floor(Math.random() * 40) + 90;
@@ -60,7 +64,6 @@ export default function App() {
       })
       .catch((err) => {
         console.error('Ошибка загрузки CheapShark API:', err);
-        // Запасной вариант, если API недоступно
         setBoxes([
           {
             id: 'fallback-1',
@@ -69,7 +72,7 @@ export default function App() {
             width: 150,
             height: 100,
             color: '#4f46e5',
-            title: 'CheapShark API Error / Fallback Game',
+            title: 'CheapShark API Error',
             link: 'https://www.cheapshark.com/',
           },
         ]);
@@ -98,24 +101,52 @@ export default function App() {
     dragInfo.current.currentX = newX;
     dragInfo.current.currentY = newY;
 
+    // Двигаем элемент
     const el = boxElementsRef.current[id];
     if (el) {
       el.style.transform = `translate(${newX}px, ${newY}px) scale(1.03)`;
+
+      // Проверяем пересечение с корзиной для подсветки
+      if (trashRef.current) {
+        const trashRect = trashRef.current.getBoundingClientRect();
+        const boxRect = el.getBoundingClientRect();
+
+        const isOver = !(
+          boxRect.right < trashRect.left ||
+          boxRect.left > trashRect.right ||
+          boxRect.bottom < trashRect.top ||
+          boxRect.top > trashRect.bottom
+        );
+
+        dragInfo.current.isOverTrash = isOver;
+        trashRef.current.classList.toggle('trash-active', isOver);
+      }
     }
   }, []);
 
   const handlePointerUp = useCallback(() => {
-    const { id, currentX, currentY } = dragInfo.current;
+    const { id, currentX, currentY, isOverTrash } = dragInfo.current;
     if (!id) return;
 
-    const el = boxElementsRef.current[id];
-    if (el) {
-      el.style.transform = `translate(${currentX}px, ${currentY}px)`;
+    if (isOverTrash) {
+      // Если блок над мусоркой — удаляем его из состояния
+      setBoxes((prevBoxes) => prevBoxes.filter((b) => b.id !== id));
+    } else {
+      // Иначе фиксируем новую позицию
+      const el = boxElementsRef.current[id];
+      if (el) {
+        el.style.transform = `translate(${currentX}px, ${currentY}px)`;
+      }
+
+      setBoxes((prevBoxes) =>
+        prevBoxes.map((b) => (b.id === id ? { ...b, x: currentX, y: currentY } : b))
+      );
     }
 
-    setBoxes((prevBoxes) =>
-      prevBoxes.map((b) => (b.id === id ? { ...b, x: currentX, y: currentY } : b))
-    );
+    // Сбрасываем подсветку мусорки
+    if (trashRef.current) {
+      trashRef.current.classList.remove('trash-active');
+    }
 
     dragInfo.current.id = null;
     setActiveBoxId(null);
@@ -148,6 +179,7 @@ export default function App() {
       currentY: box.y,
       width: box.width,
       height: box.height,
+      isOverTrash: false,
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -162,7 +194,6 @@ export default function App() {
     const w = Math.floor(Math.random() * 60) + 140;
     const h = Math.floor(Math.random() * 40) + 90;
 
-    // Берем случайную игру из загруженного пула или дефолтную
     const pool = dealsPoolRef.current;
     const randomDeal = pool.length > 0 
       ? pool[Math.floor(Math.random() * pool.length)] 
@@ -219,14 +250,19 @@ export default function App() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="game-link"
-                onPointerDown={(e) => e.stopPropagation()} // Блокируем перетаскивание при клике на текст ссылки
-                onClick={(e) => e.stopPropagation()}        // Блокируем клик, чтобы открывалась вкладка
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
               >
                 {box.title}
               </a>
             </div>
           );
         })}
+
+        {/* Корзина в правом нижнем углу */}
+        <div ref={trashRef} className="trash-bin">
+          🗑️
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@
   width: 100vw;
   background-color: #f4f4f9;
   overflow: hidden;
+  position: relative;
 }
 
 .header {
@@ -62,7 +63,6 @@
   touch-action: none;
 }
 
-/* Стили для ссылки на игру */
 .game-link {
   color: #ffffff;
   font-weight: bold;
@@ -72,10 +72,38 @@
   word-break: break-word;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3; /* Ограничение в 3 строки, чтобы текст не вылезал */
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
 .game-link:hover {
-  color: #fde047; /* Желтоватый оттенок при наведении */
+  color: #fde047;
+}
+
+/* Стили для зоны мусорки */
+.trash-bin {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  width: 75px;
+  height: 75px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 2px dashed #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  transition: all 0.2s ease;
+  z-index: 999;
+  pointer-events: none; /* Чтобы не мешало кликам */
+}
+
+/* Состояние при наведении блока на корзину */
+.trash-bin.trash-active {
+  background-color: rgba(239, 68, 68, 0.35);
+  transform: scale(1.15);
+  border-color: #dc2626;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
