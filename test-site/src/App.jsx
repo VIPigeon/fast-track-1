@@ -49,7 +49,7 @@ const getGradedColor = (value, minVal, maxVal, baseHue, isReversed) => {
 export default function App() {
   const [currentPage, setCurrentPage] = useState('main');
   const [boxes, setBoxes] = useState([]);
-  const [trashedBoxes, setTrashedBoxes] = useState([]); // Сброшенные в урну игры для аналитики
+  const [trashedBoxes, setTrashedBoxes] = useState([]); 
   const [activeBoxId, setActiveBoxId] = useState(null);
 
   const [isFilterEnabled, setIsFilterEnabled] = useState(false);
@@ -63,7 +63,6 @@ export default function App() {
   const containerRef = useRef(null);
   const trashRef = useRef(null);
   const boxElementsRef = useRef({});
-  const dealsPoolRef = useRef([]);
 
   const dragInfo = useRef({
     id: null,
@@ -78,70 +77,6 @@ export default function App() {
     isOverTrash: false,
     isProcessed: false,
   });
-
-  useEffect(() => {
-    fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=20')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          dealsPoolRef.current = data;
-
-          const initialBoxes = data.slice(0, 6).map((deal, index) => {
-            const w = 170;
-            const h = 135;
-            const storeName = STORE_NAMES[deal.storeID] || 'PC Store';
-
-            const salePrice = parseFloat(deal.salePrice) || 0;
-            const dealRating = parseFloat(deal.steamRatingPercent) || 0;
-            
-            const releaseTimestamp = deal.releaseDate && deal.releaseDate > 0 
-              ? deal.releaseDate * 1000 
-              : new Date(2018 + (index % 6), 0, 1).getTime();
-
-            return {
-              id: `box-${index}-${Date.now()}`,
-              x: Math.floor(Math.random() * 300) + 20,
-              y: Math.floor(Math.random() * 300) + 20,
-              width: w,
-              height: h,
-              color: getRandomColor(),
-              title: deal.title,
-              salePrice: salePrice,
-              normalPrice: deal.normalPrice,
-              releaseDate: releaseTimestamp,
-              releaseYearLabel: new Date(releaseTimestamp).getFullYear(),
-              rating: dealRating,
-              store: storeName,
-              tags: getRandomTags(),
-              link: `https://www.cheapshark.com/redirect?dealID=${deal.dealID}`,
-            };
-          });
-          setBoxes(initialBoxes);
-        }
-      })
-      .catch((err) => {
-        console.error('Ошибка загрузки CheapShark API:', err);
-        setBoxes([
-          {
-            id: 'fallback-1',
-            x: 50,
-            y: 50,
-            width: 170,
-            height: 135,
-            color: '#4f46e5',
-            title: 'Fallback Game',
-            salePrice: 9.99,
-            normalPrice: '19.99',
-            releaseDate: new Date(2020, 0, 1).getTime(),
-            releaseYearLabel: 2020,
-            rating: 5.0,
-            store: 'Steam',
-            tags: ['Экшен'],
-            link: 'https://www.cheapshark.com/',
-          },
-        ]);
-      });
-  }, []);
 
   const handlePointerMove = useCallback((e) => {
     const { id, startX, startY, initialX, initialY, width, height } = dragInfo.current;
@@ -186,22 +121,21 @@ export default function App() {
     }
   }, []);
 
- const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     const { id, currentX, currentY, isOverTrash } = dragInfo.current;
     if (!id) return;
 
-    // Защита от повторного срабатывания (дублирования)
     if (dragInfo.current.isProcessed) return;
     dragInfo.current.isProcessed = true;
 
     if (isOverTrash) {
-      // Переносим в урну строго один раз
       setBoxes((prevBoxes) => {
         const deletedBox = prevBoxes.find((b) => b.id === id);
         if (deletedBox) {
           setTrashedBoxes((prevTrashed) => {
-            // Дополнительная проверка на дубль по id на всякий случай
-            if (prevTrashed.some((b) => b.id === deletedBox.id)) return prevTrashed;
+            // Проверка: если игра с таким же названием уже есть в урне, не добавляем её повторно в аналитику
+            const alreadyExists = prevTrashed.some((b) => b.title === deletedBox.title);
+            if (alreadyExists) return prevTrashed;
             return [...prevTrashed, deletedBox];
           });
         }
@@ -262,47 +196,71 @@ export default function App() {
     window.addEventListener('pointercancel', handlePointerUp);
   };
 
+  // Добавление игры с проверкой уникальности
   const addBox = () => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
-    const w = 170;
-    const h = 135;
+    fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=60')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          let randomDeal = null;
+          let attempts = 0;
+          const maxAttempts = 6;
 
-    const pool = dealsPoolRef.current;
-    const randomDeal = pool.length > 0 
-      ? pool[Math.floor(Math.random() * pool.length)] 
-      : { title: 'Случайная игра', dealID: '', salePrice: '4.99', normalPrice: '14.99', storeID: '1', dealRating: '5.0' };
+          // Ищем уникальную игру, которой еще нет на доске
+          while (attempts < maxAttempts) {
+            const candidate = data[Math.floor(Math.random() * data.length)];
+            const alreadyOnBoard = boxes.some((b) => b.title === candidate.title);
 
-    const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
-    const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
-    const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
-    
-    const releaseTimestamp = randomDeal.releaseDate && randomDeal.releaseDate > 0 
-      ? randomDeal.releaseDate * 1000 
-      : new Date(2015 + Math.floor(Math.random() * 9), 0, 1).getTime();
+            if (!alreadyOnBoard) {
+              randomDeal = candidate;
+              break;
+            }
+            attempts++;
+          }
 
-    const newBox = {
-      id: `box-${Date.now()}`,
-      x: Math.floor(Math.random() * Math.max(0, rect.width - w)),
-      y: Math.floor(Math.random() * Math.max(0, rect.height - h)),
-      width: w,
-      height: h,
-      color: getRandomColor(),
-      title: randomDeal.title,
-      salePrice: salePrice,
-      normalPrice: randomDeal.normalPrice,
-      releaseDate: releaseTimestamp,
-      releaseYearLabel: new Date(releaseTimestamp).getFullYear(),
-      rating: dealRating,
-      store: storeName,
-      tags: getRandomTags(),
-      link: randomDeal.dealID 
-        ? `https://www.cheapshark.com/redirect?dealID=${randomDeal.dealID}` 
-        : 'https://www.cheapshark.com/',
-    };
+          // Если после 3 попыток все игры уже на доске
+          if (!randomDeal) {
+            alert('Новых игр пока нет (все доступные игры уже добавлены на доску)');
+            return;
+          }
 
-    setBoxes((prev) => [...prev, newBox]);
+          const w = 170;
+          const h = 135;
+          const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
+          const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
+          const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
+          
+          const releaseTimestamp = randomDeal.releaseDate && randomDeal.releaseDate > 0 
+            ? randomDeal.releaseDate * 1000 
+            : new Date(2015 + Math.floor(Math.random() * 9), 0, 1).getTime();
+
+          const newBox = {
+            id: `box-${Date.now()}-${Math.random()}`,
+            x: Math.floor(Math.random() * Math.max(0, rect.width - w - 50)) + 10,
+            y: Math.floor(Math.random() * Math.max(0, rect.height - h - 50)) + 10,
+            width: w,
+            height: h,
+            color: getRandomColor(),
+            title: randomDeal.title,
+            salePrice: salePrice,
+            normalPrice: randomDeal.normalPrice,
+            releaseDate: releaseTimestamp,
+            releaseYearLabel: new Date(releaseTimestamp).getFullYear(),
+            rating: dealRating,
+            store: storeName,
+            tags: getRandomTags(),
+            link: `https://www.cheapshark.com/redirect?dealID=${randomDeal.dealID}`,
+          };
+
+          setBoxes((prev) => [...prev, newBox]);
+        }
+      })
+      .catch((err) => {
+        console.error('Ошибка фетча CheapShark API:', err);
+      });
   };
 
   const handleTagToggle = (tag) => {
@@ -349,7 +307,6 @@ export default function App() {
     return 280;
   };
 
-  // Переключение страниц с передачей сброшенных блоков
   if (currentPage === 'analytics') {
     return <Analytics onBack={() => setCurrentPage('main')} trashedBoxes={trashedBoxes} />;
   }
@@ -357,7 +314,7 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1 className="title">Игры с CheapShark & Режимы отображения</h1>
+        <h1 className="title">Ручной поисковик игр с CheapShark</h1>
         <button onClick={addBox} className="button">
           + Добавить игру
         </button>
@@ -365,6 +322,26 @@ export default function App() {
 
       <div className="main-layout">
         <div ref={containerRef} className="board">
+          {boxes.length === 0 && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: '#6b7280',
+              textAlign: 'center',
+              padding: '20px',
+              userSelect: 'none'
+            }}>
+              <span style={{ fontSize: '3rem', marginBottom: '10px' }}>🎮</span>
+              <h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>Игр нет</h3>
+              <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                Нажмите кнопку <strong>«+ Добавить игру»</strong>, чтобы добавить игру.
+              </p>
+            </div>
+          )}
+
           {boxes.map((box) => {
             const isActive = activeBoxId === box.id;
 
