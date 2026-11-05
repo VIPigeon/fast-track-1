@@ -3,12 +3,12 @@ import './App.css';
 import Analytics from './Analytics';
 
 const COLOR_PALETTE = [
-  '#4f46e5', // Индиго
-  '#06b6d4', // Бирюзовый
-  '#10b981', // Зеленый
-  '#f59e0b', // Оранжевый
-  '#8b5cf6', // Фиолетовый
-  '#ec4899', // Розовый
+  '#4f46e5',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#8b5cf6',
+  '#ec4899',
 ];
 
 const AVAILABLE_TAGS = ['Экшен', 'RPG', 'Инди', 'Стратегия', 'Шутер', 'Приключения'];
@@ -47,8 +47,9 @@ const getGradedColor = (value, minVal, maxVal, baseHue, isReversed) => {
 };
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('main'); // 'main' или 'analytics'
+  const [currentPage, setCurrentPage] = useState('main');
   const [boxes, setBoxes] = useState([]);
+  const [trashedBoxes, setTrashedBoxes] = useState([]); // Сброшенные в урну игры для аналитики
   const [activeBoxId, setActiveBoxId] = useState(null);
 
   const [isFilterEnabled, setIsFilterEnabled] = useState(false);
@@ -75,6 +76,7 @@ export default function App() {
     width: 0,
     height: 0,
     isOverTrash: false,
+    isProcessed: false,
   });
 
   useEffect(() => {
@@ -184,12 +186,27 @@ export default function App() {
     }
   }, []);
 
-  const handlePointerUp = useCallback(() => {
+ const handlePointerUp = useCallback(() => {
     const { id, currentX, currentY, isOverTrash } = dragInfo.current;
     if (!id) return;
 
+    // Защита от повторного срабатывания (дублирования)
+    if (dragInfo.current.isProcessed) return;
+    dragInfo.current.isProcessed = true;
+
     if (isOverTrash) {
-      setBoxes((prevBoxes) => prevBoxes.filter((b) => b.id !== id));
+      // Переносим в урну строго один раз
+      setBoxes((prevBoxes) => {
+        const deletedBox = prevBoxes.find((b) => b.id === id);
+        if (deletedBox) {
+          setTrashedBoxes((prevTrashed) => {
+            // Дополнительная проверка на дубль по id на всякий случай
+            if (prevTrashed.some((b) => b.id === deletedBox.id)) return prevTrashed;
+            return [...prevTrashed, deletedBox];
+          });
+        }
+        return prevBoxes.filter((b) => b.id !== id);
+      });
     } else {
       const el = boxElementsRef.current[id];
       if (el) {
@@ -237,6 +254,7 @@ export default function App() {
       width: box.width,
       height: box.height,
       isOverTrash: false,
+      isProcessed: false,
     };
 
     window.addEventListener('pointermove', handlePointerMove);
@@ -258,7 +276,7 @@ export default function App() {
 
     const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
     const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
-    const dealRating = parseFloat(randomDeal.dealRating) || 5.0;
+    const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
     
     const releaseTimestamp = randomDeal.releaseDate && randomDeal.releaseDate > 0 
       ? randomDeal.releaseDate * 1000 
@@ -331,9 +349,9 @@ export default function App() {
     return 280;
   };
 
-  // Переключение страниц
+  // Переключение страниц с передачей сброшенных блоков
   if (currentPage === 'analytics') {
-    return <Analytics onBack={() => setCurrentPage('main')} boxesCount={boxes.length} />;
+    return <Analytics onBack={() => setCurrentPage('main')} trashedBoxes={trashedBoxes} />;
   }
 
   return (
@@ -406,13 +424,12 @@ export default function App() {
             );
           })}
 
-          {/* Интерактивная урна/кнопка аналитики */}
           <div
             ref={trashRef}
             onClick={() => setCurrentPage('analytics')}
             className={`trash-bin ${activeBoxId ? 'trash-pressed' : ''}`}
           >
-            <span>🗑️ Аналитика</span>
+            <span>🗑️ Аналитика ({trashedBoxes.length})</span>
           </div>
         </div>
 
