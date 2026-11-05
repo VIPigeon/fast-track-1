@@ -359,3 +359,36 @@
     padding-bottom: 60px !important;
   }
 }
+
+/* Стили для загружающегося серыми блока-скелетона */
+.box.loading {
+  background-color: #e5e7eb !important;
+  border-color: #d1d5db !important;
+  animation: pulse-skeleton 1.5s infinite ease-in-out;
+  cursor: wait !important;
+}
+
+.box-skeleton-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 6px;
+  user-select: none;
+}
+
+@keyframes pulse-skeleton {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}

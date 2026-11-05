@@ -11,7 +11,7 @@ const COLOR_PALETTE = [
   '#ec4899',
 ];
 
-const AVAILABLE_TAGS = ['Экшен', 'RPG', 'Инди', 'Стратегия', 'Шутер', 'Приключения'];
+const AVAILABLE_TAGS = ['Steam', 'EpicGames', 'GOG', 'Бесплатно', 'Бюджетные', 'AAA'];
 
 const STORE_NAMES = {
   '1': 'Steam',
@@ -27,10 +27,26 @@ const getRandomColor = () => {
   return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
 };
 
-const getRandomTags = () => {
-  const count = Math.floor(Math.random() * 2) + 1;
-  const shuffled = [...AVAILABLE_TAGS].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+const getTags = (deal) => {
+  const tags = [];
+  const salePrice = parseFloat(deal.salePrice) || 0;
+  const normalPrice = parseFloat(deal.normalPrice) || salePrice;
+
+  if (salePrice === 0) {
+    tags.push('Бесплатно');
+  }
+
+  if (salePrice < 5 && salePrice > 0) {
+    tags.push('Бюджетные');
+  } else if (normalPrice >= 40) {
+    tags.push('AAA');
+  }
+
+  if (deal.storeID === '1') tags.push('Steam');
+  else if (deal.storeID === '25') tags.push('Epic Games');
+  else if (deal.storeID === '7') tags.push('GOG');
+
+  return tags;
 };
 
 const getGradedColor = (value, minVal, maxVal, baseHue, isReversed) => {
@@ -58,9 +74,8 @@ export default function App() {
   );
 
   const [isSortEnabled, setIsSortEnabled] = useState(false);
-  const [sortParam, setSortParam] = useState('releaseDate');
+  const [sortParam, setSortParam] = useState('price');
 
-  // Состояние для управления выдвижным сайдбаром на мобильных
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const containerRef = useRef(null);
@@ -170,6 +185,9 @@ export default function App() {
   }, [handlePointerMove]);
 
   const handlePointerDown = (e, box) => {
+    // Не даем перетаскивать серый загружающийся блок
+    if (box.isLoading) return;
+
     e.stopPropagation();
 
     const container = containerRef.current;
@@ -208,66 +226,97 @@ export default function App() {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
+    // Адаптивные размеры карточки
+    const isMobile = window.innerWidth <= 768;
+    const w = isMobile ? 130 : 170;
+    const h = isMobile ? 110 : 135;
+
+    // Рассчитываем случайную позицию в центральных 70% доски
+    const marginX = rect.width * 0.15;
+    const rangeX = rect.width * 0.7 - w;
+    const marginY = rect.height * 0.15;
+    const rangeY = rect.height * 0.7 - h;
+
+    const randomX = Math.floor(marginX + Math.random() * Math.max(0, rangeX));
+    const randomY = Math.floor(marginY + Math.random() * Math.max(0, rangeY));
+
+    // Создаем временный серый блок (Placeholder/Skeleton)
+    const tempId = `box-temp-${Date.now()}-${Math.random()}`;
+    const tempBox = {
+      id: tempId,
+      x: randomX,
+      y: randomY,
+      width: w,
+      height: h,
+      isLoading: true,
+      tags: [],
+    };
+
+    // Мгновенно отображаем серый прямоугольник на доске
+    setBoxes((prev) => [...prev, tempBox]);
+
     fetch('https://www.cheapshark.com/api/1.0/deals?pageSize=60')
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           let randomDeal = null;
           let attempts = 0;
-          const maxAttempts = 3;
+          const maxAttempts = 8;
 
-          while (attempts < maxAttempts) {
-            const candidate = data[Math.floor(Math.random() * data.length)];
-            const alreadyOnBoard = boxes.some((b) => b.title === candidate.title);
+          setBoxes((currentBoxes) => {
+            while (attempts < maxAttempts) {
+              const candidate = data[Math.floor(Math.random() * data.length)];
+              const alreadyOnBoard = currentBoxes.some((b) => b.title === candidate.title);
 
-            if (!alreadyOnBoard) {
-              randomDeal = candidate;
-              break;
+              if (!alreadyOnBoard) {
+                randomDeal = candidate;
+                break;
+              }
+              attempts++;
             }
-            attempts++;
-          }
 
-          if (!randomDeal) {
-            alert('Новых игр пока нет (все доступные игры уже добавлены на доску)');
-            return;
-          }
+            if (!randomDeal) {
+              alert('Новых игр пока нет (все доступные игры уже добавлены на доску)');
+              // Удаляем временный серый блок, если новых игр не нашли
+              return currentBoxes.filter((b) => b.id !== tempId);
+            }
 
-          // Адаптивные размеры под экран телефона
-          const isMobile = window.innerWidth <= 768;
-          const w = isMobile ? 130 : 170;
-          const h = isMobile ? 110 : 135;
+            const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
+            const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
+            const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
+            
+            const releaseTimestamp = randomDeal.releaseDate && randomDeal.releaseDate > 0 
+              ? randomDeal.releaseDate * 1000 
+              : new Date(2015 + Math.floor(Math.random() * 9), 0, 1).getTime();
 
-          const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
-          const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
-          const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
-          
-          const releaseTimestamp = randomDeal.releaseDate && randomDeal.releaseDate > 0 
-            ? randomDeal.releaseDate * 1000 
-            : new Date(2015 + Math.floor(Math.random() * 9), 0, 1).getTime();
+            const updatedBox = {
+              id: `box-${Date.now()}-${Math.random()}`,
+              x: randomX,
+              y: randomY,
+              width: w,
+              height: h,
+              color: getRandomColor(),
+              title: randomDeal.title,
+              salePrice: salePrice,
+              normalPrice: randomDeal.normalPrice,
+              releaseDate: releaseTimestamp,
+              releaseYearLabel: new Date(releaseTimestamp).getFullYear(),
+              rating: dealRating,
+              store: storeName,
+              tags: getTags(randomDeal),
+              link: `https://www.cheapshark.com/redirect?dealID=${randomDeal.dealID}`,
+              isLoading: false,
+            };
 
-          const newBox = {
-            id: `box-${Date.now()}-${Math.random()}`,
-            x: Math.floor(Math.random() * Math.max(0, rect.width - w - 20)) + 10,
-            y: Math.floor(Math.random() * Math.max(0, rect.height - h - 20)) + 10,
-            width: w,
-            height: h,
-            color: getRandomColor(),
-            title: randomDeal.title,
-            salePrice: salePrice,
-            normalPrice: randomDeal.normalPrice,
-            releaseDate: releaseTimestamp,
-            releaseYearLabel: new Date(releaseTimestamp).getFullYear(),
-            rating: dealRating,
-            store: storeName,
-            tags: getRandomTags(),
-            link: `https://www.cheapshark.com/redirect?dealID=${randomDeal.dealID}`,
-          };
-
-          setBoxes((prev) => [...prev, newBox]);
+            // Заменяем серый блок подгруженными данными
+            return currentBoxes.map((b) => (b.id === tempId ? updatedBox : b));
+          });
         }
       })
       .catch((err) => {
         console.error('Ошибка фетча CheapShark API:', err);
+        // При ошибке фетча удаляем заглушку
+        setBoxes((prev) => prev.filter((b) => b.id !== tempId));
       });
   };
 
@@ -296,11 +345,16 @@ export default function App() {
 
   const getMinMaxForParam = (param) => {
     if (boxes.length === 0) return { min: 0, max: 1 };
-    const values = boxes.map((b) => {
-      if (param === 'price') return b.salePrice;
-      if (param === 'rating') return b.rating;
-      return b.releaseDate;
-    });
+    const values = boxes
+      .filter((b) => !b.isLoading)
+      .map((b) => {
+        if (param === 'price') return b.salePrice;
+        if (param === 'rating') return b.rating;
+        return b.releaseDate;
+      });
+
+    if (values.length === 0) return { min: 0, max: 1 };
+
     return {
       min: Math.min(...values),
       max: Math.max(...values),
@@ -323,7 +377,6 @@ export default function App() {
     <div className="app-container">
       <header className="header">
         <h1 className="title">ManualShark</h1>
-        {/* Кнопка вызова меню на мобилках */}
         <button 
           className="menu-toggle-btn"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -333,7 +386,6 @@ export default function App() {
       </header>
 
       <div className="main-layout">
-        {/* Затемнение фона при открытом меню на телефоне */}
         <div 
           className={`sidebar-overlay ${isMobileMenuOpen ? 'active' : ''}`}
           onClick={() => setIsMobileMenuOpen(false)}
@@ -365,7 +417,9 @@ export default function App() {
 
             let boxBgColor = box.color;
 
-            if (isSortEnabled) {
+            if (box.isLoading) {
+              boxBgColor = '#e5e7eb';
+            } else if (isSortEnabled) {
               let val = box.releaseDate;
               if (sortParam === 'price') val = box.salePrice;
               if (sortParam === 'rating') val = box.rating;
@@ -384,40 +438,49 @@ export default function App() {
                 onTouchStart={(e) => handlePointerDown(e, box)}
                 onTouchMove={handlePointerMove}
                 onTouchEnd={handlePointerUp}
-                className="box"
+                className={`box ${box.isLoading ? 'loading' : ''}`}
                 style={{
                   left: '0px',
                   top: '0px',
                   width: `${box.width}px`,
                   height: `${box.height}px`,
                   backgroundColor: boxBgColor,
-                  cursor: isActive ? 'grabbing' : 'grab',
+                  cursor: box.isLoading ? 'wait' : isActive ? 'grabbing' : 'grab',
                   borderColor: isActive ? '#000' : 'rgba(0,0,0,0.15)',
                   zIndex: isActive ? 1000 : 1,
                   transform: `translate(${box.x}px, ${box.y}px)`,
                 }}
               >
-                <a
-                  href={box.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="game-link"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {box.title}
-                </a>
-
-                <div className="game-info-footer">
-                  <div className="game-prices">
-                    <span className="sale-price">${box.salePrice.toFixed(2)}</span>
-                    {box.normalPrice && parseFloat(box.normalPrice) !== box.salePrice && (
-                      <span className="normal-price">${box.normalPrice}</span>
-                    )}
+                {box.isLoading ? (
+                  <div className="box-skeleton-content">
+                    <span style={{ fontSize: '1.2rem' }}>⏳</span>
+                    <span>Загрузка...</span>
                   </div>
-                  <span className="game-meta">👍 {box.rating.toFixed(0)}% | 📅 {box.releaseYearLabel}</span>
-                  <span className="game-meta">🏪 {box.store}</span>
-                </div>
+                ) : (
+                  <>
+                    <a
+                      href={box.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="game-link"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {box.title}
+                    </a>
+
+                    <div className="game-info-footer">
+                      <div className="game-prices">
+                        <span className="sale-price">${box.salePrice.toFixed(2)}</span>
+                        {box.normalPrice && parseFloat(box.normalPrice) !== box.salePrice && (
+                          <span className="normal-price">${box.normalPrice}</span>
+                        )}
+                      </div>
+                      <span className="game-meta">👍 {box.rating.toFixed(0)}% | 📅 {box.releaseYearLabel}</span>
+                      <span className="game-meta">🏪 {box.store}</span>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -431,10 +494,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Выдвижной сайдбар */}
         <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            {/* Кнопка закрытия крестиком для мобильных устройств */}
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
               className="sidebar-close-btn"

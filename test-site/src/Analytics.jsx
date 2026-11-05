@@ -8,15 +8,15 @@ export default function Analytics({ onBack, trashedBoxes = [] }) {
           <button onClick={onBack} style={styles.backButton}>
             ← Назад на доску
           </button>
-          <h1 style={styles.title}>📊 Аналитика скидок</h1>
+          <h1 style={styles.title}>📊 Зависимость скидки от полной цены</h1>
         </header>
         <div style={styles.emptyState}>
           <div style={styles.emptyCard}>
             <span style={{ fontSize: '3rem', display: 'block', marginBottom: '10px' }}>🗑️</span>
             <h2>Нет данных для анализа</h2>
             <p style={{ color: '#6b7280', fontSize: '1.05rem', lineHeight: '1.5' }}>
-              Чтобы проанализировать тенденции цен и скидок, вернитесь на доску и 
-              <strong> сбросьте игры в урну для анализа</strong>.
+              Чтобы проанализировать связь между полной стоимостью игры и размером скидки, вернитесь на доску и 
+              <strong> сбросьте несколько игр в урну</strong>.
             </p>
             <button onClick={onBack} style={{ ...styles.backButton, marginTop: '15px' }}>
               Перейти к доске
@@ -27,77 +27,113 @@ export default function Analytics({ onBack, trashedBoxes = [] }) {
     );
   }
 
-  // Расчёты данных
-  const maxPrice = Math.max(
-    ...trashedBoxes.map((b) => Math.max(b.salePrice, parseFloat(b.normalPrice) || b.salePrice)),
-    1
-  );
-  
-  const totalOriginal = trashedBoxes.reduce((acc, b) => acc + (parseFloat(b.normalPrice) || b.salePrice), 0);
-  const totalSale = trashedBoxes.reduce((acc, b) => acc + b.salePrice, 0);
-  const totalSaved = Math.max(0, totalOriginal - totalSale);
+  // Общие финансовые метрики
+  const totalSalePrice = trashedBoxes.reduce((acc, b) => acc + (parseFloat(b.salePrice) || 0), 0);
+
+  // Расчет размера скидки в % для каждой игры
+  const gamesWithDiscount = trashedBoxes.map((box) => {
+    const normalPrice = parseFloat(box.normalPrice) || box.salePrice;
+    const discountPercent =
+      normalPrice > 0 ? Math.round(((normalPrice - box.salePrice) / normalPrice) * 100) : 0;
+    return {
+      ...box,
+      normalPrice,
+      discountPercent,
+    };
+  });
+
+  // Группировка по ценовым диапазонам полной стоимости
+  const priceRanges = [
+    { label: 'Бюджетные (< $10)', min: 0, max: 9.99 },
+    { label: 'Средние ($10 - $25)', min: 10, max: 24.99 },
+    { label: 'Крупные ($25 - $50)', min: 25, max: 49.99 },
+    { label: 'AAA / Премиум ($50+)', min: 50, max: Infinity },
+  ];
+
+  const categoryAnalytics = priceRanges.map((range) => {
+    const gamesInRange = gamesWithDiscount.filter(
+      (g) => g.normalPrice >= range.min && g.normalPrice <= range.max
+    );
+
+    const avgDiscount =
+      gamesInRange.length > 0
+        ? Math.round(
+            gamesInRange.reduce((acc, g) => acc + g.discountPercent, 0) / gamesInRange.length
+          )
+        : 0;
+
+    return {
+      ...range,
+      count: gamesInRange.length,
+      avgDiscount,
+    };
+  });
 
   return (
     <div style={styles.container}>
-      {/* Прилипающая к верху шапка */}
+      {/* Прилипающая шапка */}
       <header style={styles.header}>
         <button onClick={onBack} style={styles.backButton}>
           ← Назад на доску
         </button>
-        <h1 style={styles.title}>📊 Аналитика проанализированных игр</h1>
+        <h1 style={styles.title}>📊 Зависимость скидки от полной цены</h1>
       </header>
 
       {/* Прокручиваемый контент */}
       <main style={styles.content}>
-        {/* Карточки метрик */}
+        {/* Карточки метрик (включая общую стоимость со скидкой) */}
         <div style={styles.metricsRow}>
           <div style={styles.metricCard}>
             <span style={styles.metricTitle}>Игр в анализе</span>
             <span style={styles.metricValue}>{trashedBoxes.length}</span>
           </div>
           <div style={styles.metricCard}>
-            <span style={styles.metricTitle}>Общая стоимость со скидкой</span>
-            <span style={styles.metricValue}>${totalSale.toFixed(2)}</span>
-          </div>
-          <div style={styles.metricCard}>
-            <span style={styles.metricTitle}>Суммарная экономия</span>
-            <span style={{ ...styles.metricValue, color: '#10b981' }}>${totalSaved.toFixed(2)}</span>
+            <span style={styles.metricTitle}>Суммарная стоимость со скидкой</span>
+            <span style={{ ...styles.metricValue, color: '#10b981' }}>
+              ${totalSalePrice.toFixed(2)}
+            </span>
           </div>
         </div>
 
-        {/* График цен */}
+        {/* График по ценовым категориям */}
         <div style={styles.chartCard}>
-          <h3>Сравнение цен (Скидка vs Базовая)</h3>
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', color: '#111827' }}>
+            Средняя скидка по ценовым сегментам
+          </h3>
+          <p style={{ margin: '0 0 20px 0', fontSize: '0.85rem', color: '#6b7280' }}>
+            Показывает, в каком диапазоне исходных цен издатели делают наиболее агрессивные скидки.
+          </p>
+
           <div style={styles.barChartContainer}>
-            {trashedBoxes.map((box) => {
-              const normal = parseFloat(box.normalPrice) || box.salePrice;
-              const saleHeight = (box.salePrice / maxPrice) * 100;
-              const normalHeight = (normal / maxPrice) * 100;
+            {categoryAnalytics.map((cat) => {
+              const barHeight = Math.max(cat.avgDiscount, 5);
 
               return (
-                <div key={box.id} style={styles.barGroup}>
+                <div key={cat.label} style={styles.barGroup}>
+                  <span style={styles.discountValueLabel}>
+                    {cat.count > 0 ? `${cat.avgDiscount}%` : '—'}
+                  </span>
                   <div style={styles.barsArea}>
                     <div
-                      title={`Цена со скидкой: $${box.salePrice}`}
-                      style={{ ...styles.bar, height: `${saleHeight}%`, backgroundColor: '#10b981' }}
-                    />
-                    <div
-                      title={`Обычная цена: $${normal}`}
-                      style={{ ...styles.bar, height: `${normalHeight}%`, backgroundColor: '#818cf8' }}
+                      title={`${cat.label}\nСредняя скидка: ${cat.avgDiscount}%\nИгр в сегменте: ${cat.count}`}
+                      style={{
+                        ...styles.bar,
+                        height: `${barHeight}%`,
+                        backgroundColor:
+                          cat.avgDiscount >= 50
+                            ? '#10b981'
+                            : cat.avgDiscount >= 25
+                            ? '#4f46e5'
+                            : '#f59e0b',
+                        opacity: cat.count === 0 ? 0.3 : 1,
+                      }}
                     />
                   </div>
-                  <span style={styles.barLabel}>{box.title}</span>
+                  <span style={styles.barLabel}>{cat.label}</span>
+                  <span style={styles.countLabel}>({cat.count} шт.)</span>
                 </div>
               );
             })}
-          </div>
-          <div style={styles.legend}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: 12, height: 12, backgroundColor: '#10b981', borderRadius: 2 }} /> Цена со скидкой
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: 12, height: 12, backgroundColor: '#818cf8', borderRadius: 2 }} /> Обычная цена
-            </span>
           </div>
         </div>
       </main>
@@ -115,7 +151,7 @@ const styles = {
     flexDirection: 'column',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     boxSizing: 'border-box',
-    overflow: 'hidden', // предотвращает двойную прокрутку страницы целиком
+    overflow: 'hidden',
   },
   header: {
     position: 'sticky',
@@ -130,9 +166,9 @@ const styles = {
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
     flexShrink: 0,
   },
-  title: { 
-    margin: 0, 
-    fontSize: '1.1rem', 
+  title: {
+    margin: 0,
+    fontSize: '1.1rem',
     color: '#111827',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -150,7 +186,13 @@ const styles = {
     whiteSpace: 'nowrap',
     flexShrink: 0,
   },
-  emptyState: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
+  emptyState: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
   emptyCard: {
     backgroundColor: '#ffffff',
     padding: '30px 20px',
@@ -170,12 +212,12 @@ const styles = {
     margin: '0 auto',
     width: '100%',
     boxSizing: 'border-box',
-    overflowY: 'auto', // Прокрутка лентой на телефонах и узких экранах
-    WebkitOverflowScrolling: 'touch', // Гладкий инерционный скролл на iOS
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
   metricsRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '12px',
   },
   metricCard: {
@@ -192,7 +234,7 @@ const styles = {
   metricValue: { fontSize: '1.4rem', fontWeight: 'bold', color: '#1f2937' },
   chartCard: {
     backgroundColor: '#ffffff',
-    padding: '16px',
+    padding: '20px',
     borderRadius: '12px',
     boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
     border: '1px solid #e5e7eb',
@@ -212,38 +254,36 @@ const styles = {
     alignItems: 'center',
     height: '100%',
     flex: 1,
-    minWidth: '50px',
+    minWidth: '80px',
+  },
+  discountValueLabel: {
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: '4px',
   },
   barsArea: {
     display: 'flex',
     alignItems: 'flex-end',
-    gap: '4px',
+    justifyContent: 'center',
     height: '100%',
     width: '100%',
-    justifyContent: 'center',
   },
   bar: {
-    width: '14px',
-    borderRadius: '4px 4px 0 0',
-    transition: 'height 0.3s ease',
+    width: '32px',
+    borderRadius: '6px 6px 0 0',
+    transition: 'height 0.4s ease',
   },
   barLabel: {
-    fontSize: '0.7rem',
-    color: '#4b5563',
-    marginTop: '6px',
-    textAlign: 'center',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    maxWidth: '70px',
-  },
-  legend: {
-    display: 'flex',
-    gap: '16px',
-    justifyContent: 'center',
-    marginTop: '14px',
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
+    fontWeight: '600',
     color: '#374151',
-    flexWrap: 'wrap',
+    marginTop: '8px',
+    textAlign: 'center',
+  },
+  countLabel: {
+    fontSize: '0.65rem',
+    color: '#9ca3af',
+    marginTop: '2px',
   },
 };
