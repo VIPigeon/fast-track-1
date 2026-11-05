@@ -315,9 +315,9 @@ export default function App() {
     <div className="app-container">
       <header className="header">
         <h1 className="title">Ручной поисковик игр с CheapShark</h1>
-        <button onClick={addBox} className="button">
+        {/* <button onClick={addBox} className="button">
           + Добавить игру
-        </button>
+        </button> */}
       </header>
 
       <div className="main-layout">
@@ -411,6 +411,9 @@ export default function App() {
         </div>
 
         <aside className="sidebar">
+          <button onClick={addBox} className="sidebar-button">
+            + Добавить игру
+          </button>
           <h2 className="sidebar-title">Настройки</h2>
           
           <div className="sidebar-section">
