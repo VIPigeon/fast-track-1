@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './App.css';
+import Analytics from './Analytics';
 
 const COLOR_PALETTE = [
   '#4f46e5', // Индиго
@@ -46,6 +47,7 @@ const getGradedColor = (value, minVal, maxVal, baseHue, isReversed) => {
 };
 
 export default function App() {
+  const [currentPage, setCurrentPage] = useState('main'); // 'main' или 'analytics'
   const [boxes, setBoxes] = useState([]);
   const [activeBoxId, setActiveBoxId] = useState(null);
 
@@ -292,12 +294,11 @@ export default function App() {
     }));
   };
 
-  // Обработчики включения режимов с взаимным отключением
   const handleSortToggle = (e) => {
     const checked = e.target.checked;
     setIsSortEnabled(checked);
     if (checked) {
-      setIsFilterEnabled(false); // Выключаем фильтр по тегам при включении сортировки
+      setIsFilterEnabled(false);
     }
   };
 
@@ -305,7 +306,7 @@ export default function App() {
     const checked = e.target.checked;
     setIsFilterEnabled(checked);
     if (checked) {
-      setIsSortEnabled(false); // Выключаем сортировку при включении фильтра по тегам
+      setIsSortEnabled(false);
     }
   };
 
@@ -329,6 +330,11 @@ export default function App() {
     if (param === 'rating') return 220;
     return 280;
   };
+
+  // Переключение страниц
+  if (currentPage === 'analytics') {
+    return <Analytics onBack={() => setCurrentPage('main')} boxesCount={boxes.length} />;
+  }
 
   return (
     <div className="app-container">
@@ -400,15 +406,19 @@ export default function App() {
             );
           })}
 
-          <div ref={trashRef} className="trash-bin">
-            🗑️
+          {/* Интерактивная урна/кнопка аналитики */}
+          <div
+            ref={trashRef}
+            onClick={() => setCurrentPage('analytics')}
+            className={`trash-bin ${activeBoxId ? 'trash-pressed' : ''}`}
+          >
+            <span>🗑️ Аналитика</span>
           </div>
         </div>
 
         <aside className="sidebar">
           <h2 className="sidebar-title">Настройки</h2>
           
-          {/* Секция: Сортировка по цвету */}
           <div className="sidebar-section">
             <label className="filter-toggle-label">
               <input
@@ -459,7 +469,6 @@ export default function App() {
 
           <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '5px 0' }} />
 
-          {/* Секция: Фильтр по тэгам */}
           <div className="sidebar-section">
             <label className="filter-toggle-label">
               <input
