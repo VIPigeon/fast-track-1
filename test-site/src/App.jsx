@@ -433,12 +433,11 @@ export default function App() {
 
         {/* Выдвижной сайдбар */}
         <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 className="sidebar-title" style={{ margin: 0 }}>Настройки</h2>
-            {/* Кнопка закрытия крестиком для мобил */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {/* Кнопка закрытия крестиком для мобильных устройств */}
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
-              style={{ display: window.innerWidth <= 768 ? 'block' : 'none', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+              className="sidebar-close-btn"
             >
               ✕
             </button>

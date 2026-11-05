@@ -280,23 +280,36 @@
   z-index: 99;
 }
 
-/* Адаптивность для мобильных телефонов (ширина до 768px) */
 @media (max-width: 768px) {
   .menu-toggle-btn {
     display: block;
   }
 
+  /* Показываем кнопку закрытия крестиком */
+  .sidebar-close-btn {
+    display: block;
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: #374151;
+    padding: 4px 8px;
+  }
+
+  /* Сайдбар на мобилках */
   .sidebar {
     position: fixed !important;
     top: 0;
-    right: -280px; /* Спрятан за правым краем */
-    width: 260px !important;
+    right: -240px;
+    width: 210px !important;
     height: 100vh;
     transition: right 0.3s ease-in-out;
     z-index: 100;
+    box-sizing: border-box;
+    padding: 15px;
+    gap: 12px;
   }
 
-  /* Класс для показа сайдбара */
   .sidebar.mobile-open {
     right: 0;
   }
@@ -305,32 +318,29 @@
     display: block;
   }
 
-  /* Уменьшаем размер игровых блоков для мобилок */
-  .box {
-    width: 130px !important;
-    height: 110px !important;
-    padding: 6px !important;
-  }
-
-  .game-link {
-    font-size: 0.75rem !important;
-    -webkit-line-clamp: 1 !important; /* На телефонах название в 1 строку, чтобы поместилась цена */
-  }
-
-  .game-prices {
-    font-size: 0.7rem !important;
-  }
-
-  .game-meta {
-    font-size: 0.6rem !important;
-  }
-
-  /* Уменьшаем корзину/аналитику на мобилках */
+  /* Урна на телефоне — растянутая на всю нижнюю часть экрана */
   .trash-bin {
-    bottom: 15px;
-    right: 15px;
-    min-width: 120px;
-    height: 50px;
-    font-size: 0.95rem;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 52px;
+    min-width: unset;
+    border-radius: 0; /* Прямоугольная плашка во всю ширину */
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-top: 2px dashed #ef4444;
+    background-color: rgba(239, 68, 68, 0.95); /* Боле плотный фон для читаемости */
+    color: #ffffff;
+    font-size: 1rem;
+    z-index: 80;
+    box-sizing: border-box;
+  }
+
+  /* Чтобы нижняя часть доски не перекрывалась длинной полосой урны */
+  .board {
+    padding-bottom: 60px;
   }
 }
