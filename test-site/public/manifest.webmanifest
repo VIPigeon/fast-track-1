@@ -1,0 +1,7 @@
+{
+  "name": "ManualShark",
+  "short_name": "MShark",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}

@@ -54,6 +54,7 @@
   overflow: hidden;
   background-color: #fafafa;
   touch-action: none;
+  padding-bottom: 60px;
 }
 
 .sidebar {
@@ -154,7 +155,7 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .game-link:hover {
@@ -179,7 +180,7 @@
 .sale-price {
   color: #ffffff;
   font-weight: bold;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .normal-price {
@@ -196,48 +197,49 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
-/* Зона урны/аналитики: прямоугольная, удвоенная, кликабельная */
+
+/* Урна внизу экрана во всю ширину */
 .trash-bin {
   position: absolute;
-  bottom: 25px;
-  right: 25px;
-  min-width: 150px;
-  height: 60px;
-  padding: 0 16px;
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 2px dashed #ef4444;
-  border-radius: 12px; /* Прямоугольная форма со скруглением */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 54px;
+  min-width: unset;
+  border-radius: 0;
+  border: none;
+  border-top: 2px dashed #ef4444;
+  background-color: rgba(239, 68, 68, 0.9);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: bold;
-  color: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  box-shadow: 0 -4px 12px rgba(239, 68, 68, 0.2);
   transition: all 0.2s ease;
-  z-index: 999;
+  z-index: 90;
   cursor: pointer;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .trash-bin:hover {
-  background-color: rgba(0, 110, 255, 0.2);
+  background-color: rgba(239, 68, 68, 0.98);
 }
 
-/* 3. Увеличиваем, если пользователь просто зажал любой блок */
 .trash-bin.trash-pressed {
-  transform: scale(1.08);
+  transform: scaleY(1.08);
   border-color: #ef4444;
 }
 
-/* Увеличиваем сильнее, когда блок занесен прямо над ней */
 .trash-bin.trash-active {
-  background-color: rgba(239, 68, 68, 0.35);
-  transform: scale(1.18) !important;
-  border-color: #dc2626;
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+  background-color: #dc2626;
+  transform: scaleY(1.15) !important;
+  border-color: #b91c1c;
 }
 
 .sidebar-button {
@@ -258,6 +260,18 @@
 .sidebar-button:hover {
   background-color: #4338ca;
 }
+
+/* Крестик закрытия скрыт на ПК */
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #374151;
+  padding: 4px 8px;
+}
+
 /* Кнопка открытия меню на телефоне (скрыта на ПК) */
 .menu-toggle-btn {
   display: none;
@@ -268,7 +282,7 @@
   padding: 4px 8px;
 }
 
-/* Затемнение фона под открытым сайдбором на мобилках */
+/* Затемнение фона под открытым сайдбаром на мобилках */
 .sidebar-overlay {
   display: none;
   position: absolute;
@@ -280,23 +294,16 @@
   z-index: 99;
 }
 
+/* Мобильные медиа-запросы */
 @media (max-width: 768px) {
   .menu-toggle-btn {
     display: block;
   }
 
-  /* Показываем кнопку закрытия крестиком */
   .sidebar-close-btn {
     display: block;
-    background: none;
-    border: none;
-    font-size: 1.4rem;
-    cursor: pointer;
-    color: #374151;
-    padding: 4px 8px;
   }
 
-  /* Сайдбар на мобилках */
   .sidebar {
     position: fixed !important;
     top: 0;
@@ -318,29 +325,22 @@
     display: block;
   }
 
-  /* Урна на телефоне — растянутая на всю нижнюю часть экрана */
-  .trash-bin {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: 52px;
-    min-width: unset;
-    border-radius: 0; /* Прямоугольная плашка во всю ширину */
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-top: 2px dashed #ef4444;
-    background-color: rgba(239, 68, 68, 0.95); /* Боле плотный фон для читаемости */
-    color: #ffffff;
-    font-size: 1rem;
-    z-index: 80;
-    box-sizing: border-box;
+  .box {
+    width: 120px !important;
+    height: 105px !important;
+    padding: 6px !important;
   }
 
-  /* Чтобы нижняя часть доски не перекрывалась длинной полосой урны */
-  .board {
-    padding-bottom: 60px;
+  .game-link {
+    font-size: 0.7rem !important;
+    -webkit-line-clamp: 1 !important;
+  }
+
+  .game-prices {
+    font-size: 0.65rem !important;
+  }
+
+  .game-meta {
+    font-size: 0.55rem !important;
   }
 }
