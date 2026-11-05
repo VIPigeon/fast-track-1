@@ -54,7 +54,6 @@
   overflow: hidden;
   background-color: #fafafa;
   touch-action: none;
-  padding-bottom: 60px;
 }
 
 .sidebar {
@@ -200,46 +199,44 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* Урна внизу экрана во всю ширину */
+/* 💻 ДЕСКТОП: Урна компактная в правом нижнем углу */
 .trash-bin {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: 54px;
-  min-width: unset;
-  border-radius: 0;
-  border: none;
-  border-top: 2px dashed #ef4444;
-  background-color: rgba(239, 68, 68, 0.9);
-  color: #ffffff;
+  bottom: 25px;
+  right: 25px;
+  min-width: 160px;
+  height: 60px;
+  padding: 0 16px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 2px dashed #ef4444;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: bold;
-  box-shadow: 0 -4px 12px rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
   transition: all 0.2s ease;
-  z-index: 90;
+  z-index: 99;
   cursor: pointer;
   user-select: none;
-  box-sizing: border-box;
 }
 
 .trash-bin:hover {
-  background-color: rgba(239, 68, 68, 0.98);
+  background-color: rgba(239, 68, 68, 0.2);
 }
 
 .trash-bin.trash-pressed {
-  transform: scaleY(1.08);
+  transform: scale(1.08);
   border-color: #ef4444;
 }
 
 .trash-bin.trash-active {
-  background-color: #dc2626;
-  transform: scaleY(1.15) !important;
-  border-color: #b91c1c;
+  background-color: rgba(239, 68, 68, 0.35);
+  transform: scale(1.18) !important;
+  border-color: #dc2626;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
 
 .sidebar-button {
@@ -261,46 +258,45 @@
   background-color: #4338ca;
 }
 
-/* Крестик закрытия скрыт на ПК */
-.sidebar-close-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.4rem;
-  cursor: pointer;
-  color: #374151;
-  padding: 4px 8px;
-}
-
-/* Кнопка открытия меню на телефоне (скрыта на ПК) */
-.menu-toggle-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-
-/* Затемнение фона под открытым сайдбаром на мобилках */
+/* Элементы управления скрыты на десктопе по умолчанию */
+.sidebar-close-btn,
+.menu-toggle-btn,
 .sidebar-overlay {
   display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.4);
-  z-index: 99;
 }
 
-/* Мобильные медиа-запросы */
+/* 📱 МОБИЛЬНЫЕ УСТРОЙСТВА (экран <= 768px) */
 @media (max-width: 768px) {
   .menu-toggle-btn {
     display: block;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 4px 8px;
   }
 
   .sidebar-close-btn {
+    display: block;
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: #374151;
+    padding: 4px 8px;
+  }
+
+  .sidebar-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+  }
+
+  .sidebar-overlay.active {
     display: block;
   }
 
@@ -321,10 +317,6 @@
     right: 0;
   }
 
-  .sidebar-overlay.active {
-    display: block;
-  }
-
   .box {
     width: 120px !important;
     height: 105px !important;
@@ -342,5 +334,28 @@
 
   .game-meta {
     font-size: 0.55rem !important;
+  }
+
+  /* 📱 НА ТЕЛЕФОНЕ: Урна прикреплена строго к низу экрана и растянута */
+  .trash-bin {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    height: 56px !important;
+    min-width: unset !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 2px dashed #ef4444 !important;
+    background-color: rgba(239, 68, 68, 0.95) !important;
+    color: #ffffff !important;
+    font-size: 1rem !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15) !important;
+    z-index: 90 !important;
+  }
+
+  .board {
+    padding-bottom: 60px !important;
   }
 }
