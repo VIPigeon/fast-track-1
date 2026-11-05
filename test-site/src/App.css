@@ -258,3 +258,79 @@
 .sidebar-button:hover {
   background-color: #4338ca;
 }
+/* Кнопка открытия меню на телефоне (скрыта на ПК) */
+.menu-toggle-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* Затемнение фона под открытым сайдбором на мобилках */
+.sidebar-overlay {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 99;
+}
+
+/* Адаптивность для мобильных телефонов (ширина до 768px) */
+@media (max-width: 768px) {
+  .menu-toggle-btn {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    right: -280px; /* Спрятан за правым краем */
+    width: 260px !important;
+    height: 100vh;
+    transition: right 0.3s ease-in-out;
+    z-index: 100;
+  }
+
+  /* Класс для показа сайдбара */
+  .sidebar.mobile-open {
+    right: 0;
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  /* Уменьшаем размер игровых блоков для мобилок */
+  .box {
+    width: 130px !important;
+    height: 110px !important;
+    padding: 6px !important;
+  }
+
+  .game-link {
+    font-size: 0.75rem !important;
+    -webkit-line-clamp: 1 !important; /* На телефонах название в 1 строку, чтобы поместилась цена */
+  }
+
+  .game-prices {
+    font-size: 0.7rem !important;
+  }
+
+  .game-meta {
+    font-size: 0.6rem !important;
+  }
+
+  /* Уменьшаем корзину/аналитику на мобилках */
+  .trash-bin {
+    bottom: 15px;
+    right: 15px;
+    min-width: 120px;
+    height: 50px;
+    font-size: 0.95rem;
+  }
+}

@@ -60,6 +60,9 @@ export default function App() {
   const [isSortEnabled, setIsSortEnabled] = useState(false);
   const [sortParam, setSortParam] = useState('releaseDate');
 
+  // Состояние для управления выдвижным сайдбаром на мобильных
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const containerRef = useRef(null);
   const trashRef = useRef(null);
   const boxElementsRef = useRef({});
@@ -86,8 +89,11 @@ export default function App() {
     if (!container) return;
     const rect = container.getBoundingClientRect();
 
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    const dx = clientX - startX;
+    const dy = clientY - startY;
 
     let newX = initialX + dx;
     let newY = initialY + dy;
@@ -133,7 +139,6 @@ export default function App() {
         const deletedBox = prevBoxes.find((b) => b.id === id);
         if (deletedBox) {
           setTrashedBoxes((prevTrashed) => {
-            // Проверка: если игра с таким же названием уже есть в урне, не добавляем её повторно в аналитику
             const alreadyExists = prevTrashed.some((b) => b.title === deletedBox.title);
             if (alreadyExists) return prevTrashed;
             return [...prevTrashed, deletedBox];
@@ -170,6 +175,9 @@ export default function App() {
     const container = containerRef.current;
     if (!container) return;
 
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
     setActiveBoxId(box.id);
     
     setBoxes((prevBoxes) => {
@@ -179,8 +187,8 @@ export default function App() {
 
     dragInfo.current = {
       id: box.id,
-      startX: e.clientX,
-      startY: e.clientY,
+      startX: clientX,
+      startY: clientY,
       initialX: box.x,
       initialY: box.y,
       currentX: box.x,
@@ -196,7 +204,6 @@ export default function App() {
     window.addEventListener('pointercancel', handlePointerUp);
   };
 
-  // Добавление игры с проверкой уникальности
   const addBox = () => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -207,9 +214,8 @@ export default function App() {
         if (Array.isArray(data) && data.length > 0) {
           let randomDeal = null;
           let attempts = 0;
-          const maxAttempts = 6;
+          const maxAttempts = 3;
 
-          // Ищем уникальную игру, которой еще нет на доске
           while (attempts < maxAttempts) {
             const candidate = data[Math.floor(Math.random() * data.length)];
             const alreadyOnBoard = boxes.some((b) => b.title === candidate.title);
@@ -221,14 +227,16 @@ export default function App() {
             attempts++;
           }
 
-          // Если после 3 попыток все игры уже на доске
           if (!randomDeal) {
             alert('Новых игр пока нет (все доступные игры уже добавлены на доску)');
             return;
           }
 
-          const w = 170;
-          const h = 135;
+          // Адаптивные размеры под экран телефона
+          const isMobile = window.innerWidth <= 768;
+          const w = isMobile ? 130 : 170;
+          const h = isMobile ? 110 : 135;
+
           const storeName = STORE_NAMES[randomDeal.storeID] || 'PC Store';
           const salePrice = parseFloat(randomDeal.salePrice) || 4.99;
           const dealRating = parseFloat(randomDeal.steamRatingPercent) || 5.0;
@@ -239,8 +247,8 @@ export default function App() {
 
           const newBox = {
             id: `box-${Date.now()}-${Math.random()}`,
-            x: Math.floor(Math.random() * Math.max(0, rect.width - w - 50)) + 10,
-            y: Math.floor(Math.random() * Math.max(0, rect.height - h - 50)) + 10,
+            x: Math.floor(Math.random() * Math.max(0, rect.width - w - 20)) + 10,
+            y: Math.floor(Math.random() * Math.max(0, rect.height - h - 20)) + 10,
             width: w,
             height: h,
             color: getRandomColor(),
@@ -314,13 +322,23 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1 className="title">Ручной поисковик игр с CheapShark</h1>
-        {/* <button onClick={addBox} className="button">
-          + Добавить игру
-        </button> */}
+        <h1 className="title">ManualShark</h1>
+        {/* Кнопка вызова меню на мобилках */}
+        <button 
+          className="menu-toggle-btn"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          ⚙️ Меню
+        </button>
       </header>
 
       <div className="main-layout">
+        {/* Затемнение фона при открытом меню на телефоне */}
+        <div 
+          className={`sidebar-overlay ${isMobileMenuOpen ? 'active' : ''}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+
         <div ref={containerRef} className="board">
           {boxes.length === 0 && (
             <div style={{
@@ -337,7 +355,7 @@ export default function App() {
               <span style={{ fontSize: '3rem', marginBottom: '10px' }}>🎮</span>
               <h3 style={{ margin: '0 0 8px 0', color: '#374151' }}>Игр нет</h3>
               <p style={{ margin: 0, fontSize: '0.95rem' }}>
-                Нажмите кнопку <strong>«+ Добавить игру»</strong>, чтобы добавить игру.
+                Нажмите кнопку <strong>«+ Добавить игру»</strong> в меню, чтобы начать.
               </p>
             </div>
           )}
@@ -363,6 +381,9 @@ export default function App() {
                 key={box.id}
                 ref={(el) => (boxElementsRef.current[box.id] = el)}
                 onPointerDown={(e) => handlePointerDown(e, box)}
+                onTouchStart={(e) => handlePointerDown(e, box)}
+                onTouchMove={handlePointerMove}
+                onTouchEnd={handlePointerUp}
                 className="box"
                 style={{
                   left: '0px',
@@ -410,11 +431,24 @@ export default function App() {
           </div>
         </div>
 
-        <aside className="sidebar">
-          <button onClick={addBox} className="sidebar-button">
+        {/* Выдвижной сайдбар */}
+        <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 className="sidebar-title" style={{ margin: 0 }}>Настройки</h2>
+            {/* Кнопка закрытия крестиком для мобил */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{ display: window.innerWidth <= 768 ? 'block' : 'none', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <button onClick={() => { addBox(); setIsMobileMenuOpen(false); }} className="sidebar-button">
             + Добавить игру
           </button>
-          <h2 className="sidebar-title">Настройки</h2>
+
+          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '5px 0' }} />
           
           <div className="sidebar-section">
             <label className="filter-toggle-label">
@@ -423,7 +457,7 @@ export default function App() {
                 checked={isSortEnabled}
                 onChange={handleSortToggle}
               />
-              "Сортировка"
+              Сортировка
             </label>
 
             {isSortEnabled && (
@@ -458,7 +492,7 @@ export default function App() {
                     checked={sortParam === 'rating'}
                     onChange={(e) => setSortParam(e.target.value)}
                   />
-                  Доля положительных отзывов в steam
+                  Положительные отзывы
                 </label>
               </div>
             )}
